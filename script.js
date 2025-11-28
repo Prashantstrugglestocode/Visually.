@@ -352,6 +352,7 @@ const app = {
     steps: [], // Store parsed steps with type and value
     timelineData: { labels: [], hitRate: [], energy: [] },
     energySeries: { labels: [], static: [], dynamic: [], penalty: [] },
+    baselineSeeded: false,
 
     // View Manager (Router)
     router: {
@@ -484,6 +485,8 @@ const app = {
         const emailInput = document.getElementById('tumEmail');
         const passwordInput = document.getElementById('tumPassword');
         const errorMsg = document.getElementById('loginError');
+        const accountRaw = localStorage.getItem('tum_account');
+        const account = accountRaw ? JSON.parse(accountRaw) : null;
 
         const email = emailInput.value.trim();
         const password = passwordInput.value;
@@ -491,33 +494,78 @@ const app = {
         // TUM Email Regex
         const tumRegex = /^[a-zA-Z0-9._%+-]+@(tum\.de|mytum\.de)$/;
 
-        if (tumRegex.test(email)) {
-            // Password Validation (Mock Hash Check)
-            // Hardcoded hash for "tum_student" (SHA-256)
-            const targetHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"; // Empty string hash for demo, wait fixing below
-            // Real hash for "tum_student": 
-            // 2a97516c354b68848cdbd8f5e4d29940e52843b8363810796a01213484202842
-
-            const hash = await this.hashPassword(password);
-
-            // For demo purposes, we'll accept "tum_student" or just non-empty for now if hashing fails
-            // But let's try to do it right.
-
-            if (password === "tum_student") { // Simple check for MVP
-                localStorage.setItem('tum_user', email);
-                localStorage.setItem('isAuthenticated', 'true');
-                document.getElementById('loginOverlay').classList.add('hidden');
-                this.addChatMessage(`Welcome back, ${email.split('@')[0]}! I'm ready to help you with your cache simulations.`, 'bot');
-            } else {
-                errorMsg.classList.remove('hidden');
-                errorMsg.textContent = "Invalid password. Try 'tum_student'.";
-                passwordInput.style.borderColor = 'var(--danger-color)';
-            }
-        } else {
+        if (!tumRegex.test(email)) {
             errorMsg.classList.remove('hidden');
             errorMsg.textContent = "Please enter a valid @tum.de or @mytum.de email.";
             emailInput.style.borderColor = 'var(--danger-color)';
+            return;
         }
+
+        const hash = await this.hashPassword(password);
+
+        // If no account exists, auto-provision on login
+        if (!account || account.email !== email) {
+            localStorage.setItem('tum_account', JSON.stringify({ email, hash }));
+            localStorage.setItem('tum_user', email);
+            localStorage.setItem('isAuthenticated', 'true');
+            document.getElementById('loginOverlay').classList.add('hidden');
+            this.addChatMessage(`Account created for ${email.split('@')[0]}. You're now logged in.`, 'bot');
+            errorMsg.classList.add('hidden');
+            return;
+        }
+
+        if (hash === account.hash) {
+            localStorage.setItem('tum_user', email);
+            localStorage.setItem('isAuthenticated', 'true');
+            document.getElementById('loginOverlay').classList.add('hidden');
+            this.addChatMessage(`Welcome back, ${email.split('@')[0]}! I'm ready to help you with your cache simulations.`, 'bot');
+            errorMsg.classList.add('hidden');
+        } else {
+            errorMsg.classList.remove('hidden');
+            errorMsg.textContent = "Invalid password. Please try again.";
+            passwordInput.style.borderColor = 'var(--danger-color)';
+        }
+    },
+
+    async handleRegister() {
+        const emailInput = document.getElementById('tumEmail');
+        const passwordInput = document.getElementById('tumPassword');
+        const confirmInput = document.getElementById('tumPasswordConfirm');
+        const errorMsg = document.getElementById('loginError');
+
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        const confirm = confirmInput.value;
+
+        const tumRegex = /^[a-zA-Z0-9._%+-]+@(tum\.de|mytum\.de)$/;
+        if (!tumRegex.test(email)) {
+            errorMsg.classList.remove('hidden');
+            errorMsg.textContent = "Use your @tum.de or @mytum.de email.";
+            return;
+        }
+        if (password.length < 6) {
+            errorMsg.classList.remove('hidden');
+            errorMsg.textContent = "Password must be at least 6 characters.";
+            return;
+        }
+        if (password !== confirm) {
+            errorMsg.classList.remove('hidden');
+            errorMsg.textContent = "Passwords do not match.";
+            return;
+        }
+
+        const hash = await this.hashPassword(password);
+        localStorage.setItem('tum_account', JSON.stringify({ email, hash }));
+        errorMsg.classList.add('hidden');
+        this.addChatMessage("Account created. Please log in with your new password.", 'bot');
+        this.switchAuthMode('login');
+    },
+
+    handleGuest() {
+        localStorage.setItem('tum_user', 'guest');
+        localStorage.setItem('isAuthenticated', 'true');
+        document.getElementById('loginOverlay').classList.add('hidden');
+        this.addChatMessage("You're exploring as a guest. Login later to persist settings.", 'bot');
     },
 
     async hashPassword(message) {
@@ -546,6 +594,45 @@ const app = {
             this.updateThemeIcon(true);
         }
         this.updateChartsTheme();
+    },
+
+    switchAuthMode(mode) {
+        const loginTab = document.getElementById('loginTab');
+        const registerTab = document.getElementById('registerTab');
+        const confirmGroup = document.querySelector('.confirm-group');
+        const loginBtn = document.getElementById('loginBtn');
+        const registerBtn = document.getElementById('registerBtn');
+        const errorMsg = document.getElementById('loginError');
+        const header = document.querySelector('.login-header h2');
+        const subtitle = document.querySelector('.login-header .subtitle');
+        const passwordInput = document.getElementById('tumPassword');
+        const confirmInput = document.getElementById('tumPasswordConfirm');
+        const card = document.querySelector('.login-card');
+        if (errorMsg) errorMsg.classList.add('hidden');
+
+        if (mode === 'register') {
+            if (loginTab) loginTab.classList.remove('active');
+            if (registerTab) registerTab.classList.add('active');
+            if (confirmGroup) confirmGroup.classList.remove('hidden');
+            if (loginBtn) loginBtn.classList.add('hidden');
+            if (registerBtn) registerBtn.classList.remove('hidden');
+            if (header) header.textContent = 'Create your account';
+            if (subtitle) subtitle.textContent = 'Set a password to save your simulator session';
+            if (passwordInput) passwordInput.placeholder = 'Create password';
+            if (confirmInput) confirmInput.placeholder = 'Confirm password';
+            if (card) card.classList.add('mode-register');
+        } else {
+            if (registerTab) registerTab.classList.remove('active');
+            if (loginTab) loginTab.classList.add('active');
+            if (confirmGroup) confirmGroup.classList.add('hidden');
+            if (loginBtn) loginBtn.classList.remove('hidden');
+            if (registerBtn) registerBtn.classList.add('hidden');
+            if (header) header.textContent = 'Welcome to Cache Lab';
+            if (subtitle) subtitle.textContent = 'Use your TUM email to continue';
+            if (passwordInput) passwordInput.placeholder = 'Password';
+            if (confirmInput) confirmInput.placeholder = 'Confirm password';
+            if (card) card.classList.remove('mode-register');
+        }
     },
 
     updateThemeIcon(isDark) {
@@ -978,6 +1065,7 @@ const app = {
         );
         this.timelineData = { labels: [], hitRate: [], energy: [] };
         this.energySeries = { labels: [], static: [], dynamic: [], penalty: [] };
+        this.seedCharts();
         this.parseAddressSequence(); // Parse addresses and operations
         this.stepIndex = 0;
         document.querySelector('#resultsTable tbody').innerHTML = '';
@@ -1588,6 +1676,7 @@ const app = {
         this.stepIndex = 0;
         this.timelineData = { labels: [], hitRate: [], energy: [] };
         this.energySeries = { labels: [], static: [], dynamic: [], penalty: [] };
+        this.seedCharts();
         document.querySelector('#resultsTable tbody').innerHTML = '';
         document.getElementById('hitRateValue').textContent = '0%';
         document.getElementById('energyValue').textContent = '0 pJ';
@@ -1646,6 +1735,29 @@ const app = {
         if (this.charts.tab) {
             this.charts.tab.data.datasets.forEach(ds => ds.data = []);
             this.charts.tab.update();
+        }
+    },
+    seedCharts() {
+        // Provide a visible baseline so new charts are not empty
+        const label = 'S0';
+        this.timelineData = { labels: [label], hitRate: [0], energy: [0] };
+        this.energySeries = { labels: [label], static: [0], dynamic: [0], penalty: [0] };
+        if (this.charts.timeline) {
+            this.charts.timeline.data.labels = this.timelineData.labels;
+            this.charts.timeline.data.datasets[0].data = this.timelineData.hitRate;
+            this.charts.timeline.data.datasets[1].data = this.timelineData.energy;
+            this.charts.timeline.update();
+        }
+        if (this.charts.powerStacked) {
+            this.charts.powerStacked.data.labels = this.energySeries.labels;
+            this.charts.powerStacked.data.datasets[0].data = this.energySeries.static;
+            this.charts.powerStacked.data.datasets[1].data = this.energySeries.dynamic;
+            this.charts.powerStacked.data.datasets[2].data = this.energySeries.penalty;
+            this.charts.powerStacked.update();
+        }
+        if (this.charts.energyBar) {
+            this.charts.energyBar.data.datasets[0].data = [0, 0, 0];
+            this.charts.energyBar.update();
         }
     },
 
@@ -1806,6 +1918,10 @@ const app = {
         // Auth
         addListener('loginBtn', 'click', () => this.handleLogin());
         addListener('logoutBtn', 'click', () => this.handleLogout());
+        addListener('registerBtn', 'click', () => this.handleRegister());
+        addListener('loginTab', 'click', () => this.switchAuthMode('login'));
+        addListener('registerTab', 'click', () => this.switchAuthMode('register'));
+        addListener('guestBtn', 'click', () => this.handleGuest());
 
         // Theory
         // Theory (Handled by link to theory.html)
@@ -1900,6 +2016,10 @@ const app = {
         const settingsPanel = document.getElementById('chatSettingsPanel');
         const saveKeyBtn = document.getElementById('saveKeyBtn');
         const keyInput = document.getElementById('geminiKey');
+        if (!widget || !trigger || !closeBtn || !sendBtn || !input || !settingsBtn || !settingsPanel || !saveKeyBtn || !keyInput) {
+            console.warn('Chatbot UI missing elements; skipping init.');
+            return;
+        }
 
         // Load Key
         const savedKey = localStorage.getItem('gemini_api_key');

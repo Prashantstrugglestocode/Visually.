@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- OWASP: Content Security Policy -->
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;">
+        content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://generativelanguage.googleapis.com https://*.googleapis.com;">
     <title>Cache Simulator - TUM Edition</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -555,8 +555,12 @@ s
         <div class="login-card glass-panel">
             <div class="login-header">
                 <img src="tum_logo.png" alt="TUM Logo" class="login-logo">
-                <h2>TUM Student Login</h2>
-                <p>Please log in with your university email to access the simulator.</p>
+                <h2>Welcome to Cache Lab</h2>
+                <p class="subtitle">Use your TUM email to continue</p>
+            </div>
+            <div class="login-tabs">
+                <button id="loginTab" class="tab-btn active" data-mode="login">Login</button>
+                <button id="registerTab" class="tab-btn" data-mode="register">Register</button>
             </div>
             <div class="login-form">
                 <div class="input-group">
@@ -565,8 +569,17 @@ s
                 <div class="input-group" style="margin-top: 10px;">
                     <input type="password" id="tumPassword" placeholder="Password" required>
                 </div>
+                <div class="input-group confirm-group hidden" style="margin-top: 10px;">
+                    <input type="password" id="tumPasswordConfirm" placeholder="Confirm Password">
+                </div>
                 <button id="loginBtn" class="primary-btn full-width">Login</button>
+                <button id="registerBtn" class="primary-btn full-width hidden">Create Account</button>
+                <button id="guestBtn" class="secondary-btn full-width">Continue as Guest</button>
                 <p id="loginError" class="error-msg hidden">Invalid email or password. Please try again.</p>
+                <div class="login-meta">
+                    <p><strong>Tip:</strong> Credentials are stored locally in your browser.</p>
+                    <p class="muted">Register once, sign in instantly next time—or jump in as guest.</p>
+                </div>
             </div>
         </div>
     </div>
