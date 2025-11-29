@@ -5,7 +5,7 @@ import { useSimulatorContext } from '../../context/SimulatorContext';
 
 export function RAMPage() {
     const navigate = useNavigate();
-    const { sim, memory } = useSimulatorContext(); // Get reactive memory state
+    const { sim, memory } = useSimulatorContext();
     const [searchTerm, setSearchTerm] = useState('');
 
     // Get all memory entries
@@ -15,7 +15,7 @@ export function RAMPage() {
             address: parseInt(addr),
             value: val
         })).sort((a, b) => a.address - b.address);
-    }, [memory]); // Depend on reactive memory state
+    }, [memory]);
 
     const filteredEntries = useMemo(() => {
         if (!searchTerm) return memoryEntries;

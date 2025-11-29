@@ -51,7 +51,7 @@ export function useSimulator() {
         setPowerStats(newPowerStats);
         setCacheState(newCacheState);
         setL2CacheState(newL2CacheState);
-        setMemory({ ...simRef.current.memory }); // Update memory state (shallow copy to trigger re-render)
+        setMemory({ ...simRef.current.memory });
 
         // Add to history
         setHistory(prev => [
@@ -62,7 +62,7 @@ export function useSimulator() {
                 powerStats: newPowerStats,
                 cacheState: newCacheState,
                 l2CacheState: newL2CacheState,
-                memory: { ...simRef.current.memory }, // Add memory to history
+                memory: { ...simRef.current.memory },
                 stepIndex: simRef.current.currentTime
             }
         ]);
@@ -154,7 +154,7 @@ export function useSimulator() {
         logs, // Logs usually show full history, but maybe we want to slice them too? Let's keep full logs for now.
         cacheState: currentView.cacheState,
         l2CacheState: currentView.l2CacheState,
-        memory: currentView.memory || simRef.current.memory, // Fallback for initial state
+        memory: currentView.memory || simRef.current.memory,
         stepIndex,
         isPlaying,
         historyLength: history.length,

@@ -204,7 +204,7 @@ export class CacheSimulator {
                 // Fallback for raw addresses or variables (legacy mode)
                 if (line.startsWith('0x') || line.includes('=')) {
                     // Handle variable assignment: var x = 10
-                    // Handle variable assignment: var x = 10 or var s = "hello"
+                    // Handle variable assignment
                     if (line.startsWith('var')) {
                         const parts = line.split('=');
                         if (parts.length === 2) {
@@ -221,11 +221,8 @@ export class CacheSimulator {
                                 if (isNaN(val)) val = 0; // Default to 0 if parsing fails (e.g. complex expression)
                             }
 
-                            // Perform Write to memory
-                            // This will allocate an address for 'name' and write 'val' to it
                             const result = this.access(name, 'Write', val);
 
-                            // Attach Mock ALU info
                             result.alu = { op: 'MOVE', a: val, b: '---', res: val };
                             return result;
                         }
@@ -276,8 +273,6 @@ export class CacheSimulator {
         if (type === 'Write') {
             this.memory[address] = value;
         } else if (this.memory[address] === undefined) {
-            // Initialize memory on Read if it doesn't exist (Lazy Init)
-            // This ensures it shows up in RAM visualization
             this.memory[address] = 0;
         }
 
@@ -409,7 +404,6 @@ export class CacheSimulator {
             l2Details.hit = l2Hit;
 
             // We need to find the way index again or capture it from above
-            // Re-calculating for simplicity as variables above were scoped
             const l2Set = this.l2.sets[l2Index];
             for (let i = 0; i < l2Set.length; i++) {
                 if (l2Set[i].valid && l2Set[i].tag === l2Tag) {
@@ -417,9 +411,7 @@ export class CacheSimulator {
                     break;
                 }
             }
-            // If it was a miss and we allocated, we need that index too. 
-            // Since we didn't store the allocated index in a variable accessible here, 
-            // let's just find the block with the tag we just inserted.
+            // If it was a miss and we allocated, we need that index too.
             if (l2Details.way === -1) {
                 for (let i = 0; i < l2Set.length; i++) {
                     if (l2Set[i].valid && l2Set[i].tag === l2Tag) {
