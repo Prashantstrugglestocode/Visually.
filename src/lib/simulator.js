@@ -204,8 +204,31 @@ export class CacheSimulator {
                 // Fallback for raw addresses or variables (legacy mode)
                 if (line.startsWith('0x') || line.includes('=')) {
                     // Handle variable assignment: var x = 10
+                    // Handle variable assignment: var x = 10 or var s = "hello"
                     if (line.startsWith('var')) {
-                        // Mock variable handling
+                        const parts = line.split('=');
+                        if (parts.length === 2) {
+                            const decl = parts[0].trim().split(/\s+/); // ['var', 'x']
+                            const name = decl[1];
+                            let valStr = parts[1].trim();
+
+                            let val;
+                            // Check for string quotes
+                            if ((valStr.startsWith('"') && valStr.endsWith('"')) || (valStr.startsWith("'") && valStr.endsWith("'"))) {
+                                val = valStr.slice(1, -1);
+                            } else {
+                                val = parseInt(valStr);
+                                if (isNaN(val)) val = 0; // Default to 0 if parsing fails (e.g. complex expression)
+                            }
+
+                            // Perform Write to memory
+                            // This will allocate an address for 'name' and write 'val' to it
+                            const result = this.access(name, 'Write', val);
+
+                            // Attach Mock ALU info
+                            result.alu = { op: 'MOVE', a: val, b: '---', res: val };
+                            return result;
+                        }
                         return null;
                     }
                     const result = this.access(line); // Treat as raw access
@@ -252,6 +275,10 @@ export class CacheSimulator {
 
         if (type === 'Write') {
             this.memory[address] = value;
+        } else if (this.memory[address] === undefined) {
+            // Initialize memory on Read if it doesn't exist (Lazy Init)
+            // This ensures it shows up in RAM visualization
+            this.memory[address] = 0;
         }
 
         const offsetMask = (1 << this.offsetBits) - 1;

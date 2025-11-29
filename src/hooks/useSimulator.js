@@ -15,6 +15,7 @@ export function useSimulator() {
     const [logs, setLogs] = useState([]);
     const [cacheState, setCacheState] = useState(simRef.current.cache);
     const [l2CacheState, setL2CacheState] = useState(simRef.current.l2.sets); // L2 State
+    const [memory, setMemory] = useState(simRef.current.memory); // RAM State
     const [stepIndex, setStepIndex] = useState(0);
     const [addressSequence, setAddressSequence] = useState(`ADDI x1, x0, 10\nADDI x2, x0, 20\nADD x3, x1, x2\nSW x3, 0x100(x0)\nLW x4, 0x100(x0)`);
 
@@ -50,6 +51,7 @@ export function useSimulator() {
         setPowerStats(newPowerStats);
         setCacheState(newCacheState);
         setL2CacheState(newL2CacheState);
+        setMemory({ ...simRef.current.memory }); // Update memory state (shallow copy to trigger re-render)
 
         // Add to history
         setHistory(prev => [
@@ -60,6 +62,7 @@ export function useSimulator() {
                 powerStats: newPowerStats,
                 cacheState: newCacheState,
                 l2CacheState: newL2CacheState,
+                memory: { ...simRef.current.memory }, // Add memory to history
                 stepIndex: simRef.current.currentTime
             }
         ]);
@@ -89,7 +92,13 @@ export function useSimulator() {
                     return prev;
                 }
                 const line = lines[prev];
-                simRef.current.executeLine(line);
+                const result = simRef.current.executeLine(line);
+
+                // Update logs
+                if (result) {
+                    setLogs(currentLogs => [...currentLogs, { step: currentLogs.length + 1, ...result }]);
+                }
+
                 return prev + 1;
             });
             updateState();
@@ -134,7 +143,7 @@ export function useSimulator() {
 
     // Derived state for View
     const currentView = viewStep === -1 || !history[viewStep]
-        ? { stats, l2Stats, powerStats, cacheState, l2CacheState }
+        ? { stats, l2Stats, powerStats, cacheState, l2CacheState, memory }
         : history[viewStep];
 
     return {
@@ -145,6 +154,7 @@ export function useSimulator() {
         logs, // Logs usually show full history, but maybe we want to slice them too? Let's keep full logs for now.
         cacheState: currentView.cacheState,
         l2CacheState: currentView.l2CacheState,
+        memory: currentView.memory || simRef.current.memory, // Fallback for initial state
         stepIndex,
         isPlaying,
         historyLength: history.length,
